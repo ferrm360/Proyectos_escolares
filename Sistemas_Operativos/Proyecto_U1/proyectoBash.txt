@@ -1,0 +1,89 @@
+#!/bin/bash
+
+mostrar_usuarios() {
+
+    usuarios=$(getent passwd | cut -d: -f1)
+    echo "Usuarios en el sistema:"
+    echo "$usuarios"
+}
+
+exportar_usuarios() {
+    getent passwd | cut -d: -f1 > usuarios.csv
+    echo "Usuarios exportados a usuarios.csv"
+}
+
+mostrar_procesos() {
+   
+    read -p "Ingrese el nombre de usuario para listar procesos: " nombre_usuario
+
+   
+    procesos=$(ps -u $nombre_usuario)
+
+    
+    echo "Procesos en ejecución del usuario $nombre_usuario:"
+    echo "$procesos"
+
+    
+    read -p "Ingrese el ID del proceso que desea terminar o 'todo' para terminar todos los procesos: " proceso_a_terminar
+
+    # Terminar el proceso o procesos seleccionados
+    if [ "$proceso_a_terminar" == "todo" ]; then
+      killall -u $nombre_usuario
+      echo "Todos los procesos del usuario $nombre_usuario han sido terminados."
+    else
+      kill $proceso_a_terminar
+      echo "El proceso con ID $proceso_a_terminar ha sido terminado."
+    fi
+}
+
+respaldar_archivos() {
+        backup_dir="$HOME"
+    zip_name="respaldo_$(date +'%d_%m_%Y').zip"
+    fecha_pasada=$(date -d '7 days ago' +'%Y-%m-%d')
+    
+    find "$backup_dir" -type f \( -name "*.xlsx" -o -name "*.docx" -o -name "*.pptx" \) -newermt $fecha_pasada -exec cp {} "$backup_dir" \;
+
+    cd "$backup_dir"
+   
+    zip -r "$zip_name" . -x "$zip_name"
+    
+    echo "Archivos respaldados en $backup_dir/$zip_name"
+}
+
+menu() {
+    echo "Menú:"
+    echo "1. Mostrar usuarios"
+    echo "2. Exportar usuarios a CSV"
+    echo "3. Mostrar procesos de un usuario y terminarlos"
+    echo "4. Respaldar archivos"
+    echo "5. Salir"
+
+    read -p "Seleccione una opción (1-5): " opcion
+
+    case $opcion in
+        1)
+            mostrar_usuarios
+            ;;
+        2)
+            exportar_usuarios
+            ;;
+        3)
+            mostrar_procesos
+            ;;
+        4)
+            respaldar_archivos
+            ;;
+        5)
+            echo "Saliendo del programa."
+            exit
+            ;;
+        *)
+            echo "Opción no válida."
+            ;;
+    esac
+}
+
+while true; do
+    menu
+done
+

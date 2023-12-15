@@ -1,0 +1,208 @@
+Add-Type -AssemblyName System.Windows.Forms
+
+#Inicio ventanaP (ventana principal)
+$ventanaP = New-Object Windows.Forms.Form
+$ventanaP.Text = "Lista de Usuarios"
+$ventanaP.Size = New-Object Drawing.Size(500, 400)
+
+$botonProcesoUsuario = New-Object Windows.Forms.Button
+$botonProcesoUsuario.Text = "Proceso y Usuario"
+$botonProcesoUsuario.Location = New-Object Drawing.Point(10, 10)
+$botonProcesoUsuario.Size = New-Object Drawing.Size(150, 30)
+$ventanaP.Controls.Add($botonProcesoUsuario)
+
+$botonRespaldo = New-Object Windows.Forms.Button
+$botonRespaldo.Text = "Respaldo"
+$botonRespaldo.Size = New-Object Drawing.Size(150, 30)
+$botonRespaldo.Location = New-Object Drawing.Point(10, 50)
+$ventanaP.Controls.Add($botonRespaldo)
+
+
+$botonProcesoUsuario.add_Click({
+    $ventanaP.Hide()
+    $ventanaProcesos.ShowDialog()
+})
+
+$botonRespaldo.add_Click({
+   $ventanaP.Hide()
+   $ventanaRespaldo.ShowDialog()
+})
+
+# fin ventanaP
+
+# Inicio de ventanaProcesos
+$ventanaProcesos = New-Object Windows.Forms.Form
+$ventanaProcesos.Text = "Lista de Usuarios"
+$ventanaProcesos.Size = New-Object Drawing.Size(500, 400)
+
+$comboBox = New-Object Windows.Forms.ComboBox
+$comboBox.Location = New-Object Drawing.Point(10, 10)
+$comboBox.Size = New-Object Drawing.Size(200, 30)
+$comboBox.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+$ventanaProcesos.Controls.Add($comboBox)
+$usuarios = (Get-LocalUser).Name
+$comboBox.Items.AddRange($usuarios)
+
+$botonExportar = New-Object Windows.Forms.Button
+$botonExportar.Text = "Exportar Usuarios"
+$botonExportar.Location = New-Object Drawing.Point(220, 10)
+$botonExportar.Size = New-Object Drawing.Size(150, 30)
+$ventanaProcesos.Controls.Add($botonExportar)
+
+$botonProcesos = New-Object Windows.Forms.Button
+$botonProcesos.Text = "Mostrar Procesos"
+$botonProcesos.Location = New-Object Drawing.Point(10, 50)
+$botonProcesos.Size = New-Object Drawing.Size(150, 30)
+$ventanaProcesos.Controls.Add($botonProcesos)
+
+$botonDetenerProceso = New-Object Windows.Forms.Button
+$botonDetenerProceso.Text = "Detener Proceso"
+$botonDetenerProceso.Size = New-Object Drawing.Size(150, 30)
+$botonDetenerProceso.Location = New-Object Drawing.Point(10, 100)
+$ventanaProcesos.Controls.Add($botonDetenerProceso)
+$botonDetenerProceso.Enabled = $false
+
+$botonRegresarP = New-Object Windows.Forms.Button
+$botonRegresarP.Text = "Regresar"
+$botonRegresarP.Size = New-Object Drawing.Size(150, 30)
+$botonRegresarP.Location = New-Object Drawing.Point(10, 300)
+$ventanaProcesos.Controls.Add($botonRegresarP)
+
+# Crear una tabla para mostrar la lista de procesos similar a como es un jtable
+$tabla = New-Object Windows.Forms.DataGridView
+$tabla.Location = New-Object Drawing.Point(170, 50)
+$tabla.Size = New-Object Drawing.Size(270, 300)
+$ventanaProcesos.Controls.Add($tabla)
+$tabla.Columns.Add("ID", "ID")
+$tabla.Columns.Add("Nombre", "Nombre")
+$tabla.ReadOnly = $true
+
+#En esta parte, si se presiona el boton exportar podemos obtener la lista de usuarios en un csv
+$botonExportar.Add_Click({
+    $usuarios = Get-LocalUser
+    $usuarios | Export-Csv -Path "C:\Users\ListaUsuarios.csv" -NoTypeInformation
+    [System.Windows.Forms.MessageBox]::Show("Usuarios exportas a C:\Users\ListaUsuarios.csv", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+})
+
+#boton procesos se encarga de mostrar los procesos por usuario de acuerdo con el combobox
+$botonProcesos.Add_Click({
+    $usuarioSeleccionado = $comboBox.SelectedItem
+    $indiceSeleccionado = $comboBox.SelectedIndex
+    if ($indiceSeleccionado -eq -1){
+        [System.Windows.Forms.MessageBox]::Show("Error, Selecciona un usuario del combobox antes de darle al boton", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    }
+    elseif ($usuarioSeleccionado) {
+        $procesos = Get-Process -IncludeUserName | Where-Object {$_.UserName -match "$usuarioSeleccionado"}
+
+        # Limpiar la tabla
+        $tabla.Rows.Clear()
+
+        if ($procesos -eq $null) {
+        [System.Windows.Forms.MessageBox]::Show("Error, el usuario $usuarioSeleccionado no tiene procesos ejecutandose" , "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+
+        }else{
+        $botonDetenerProceso.Enabled = $true
+        # Agregar el id y el nombre del proceso a la tabla
+        $procesos | ForEach-Object {
+            $tabla.Rows.Add($_.Id, $_.ProcessName)
+            }
+        }  
+    }
+})
+$botonDetenerProceso.Add_Click({
+     $filaSeleccionada = $tabla.CurrentRow.Index
+     if ($filaSeleccionada -ge 0) {
+        $usuarioSeleccionado = $comboBox.SelectedItem
+        $proceso = Get-Process -IncludeUserName | Where-Object {$_.UserName -match "$usuarioSeleccionado"}
+
+        #con .cells podemos obtener el valor de una celda on respecto a su indice.
+        $nombre = $tabla.Rows[$filaSeleccionada].Cells["Nombre"].Value
+        Stop-Process -Name $nombre -Force
+        Write-Host "`nEl proceso $nombre se ha terminado."
+        [System.Windows.Forms.MessageBox]::Show("Exito, `nEl proceso $nombre se ha terminado.", "Exito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        $tabla.Rows.Clear()       
+        $procesos = Get-Process -IncludeUserName | Where-Object {$_.UserName -match "$usuarioSeleccionado"}
+        $procesos | ForEach-Object {
+            $tabla.Rows.Add($_.Id, $_.ProcessName)
+            }
+          
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("Error, `nSelecione una celda.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+
+    }
+})
+
+$botonRegresarP.Add_Click({
+   $ventanaProcesos.Close()
+   $ventanaP.Show()
+})
+# fin de ventanaProcesos
+
+
+# Inicio de ventanaRespaldo
+$ventanaRespaldo = New-Object Windows.Forms.Form
+$ventanaRespaldo.Text = "Lista de Usuarios"
+$ventanaRespaldo.Size = New-Object Drawing.Size(500, 400)
+
+$label = New-Object System.Windows.Forms.Label
+$label.Text = "Ingresa la ruta de los archivos a respaldar"
+$label.Location = New-Object System.Drawing.Point(10, 20)
+$label.Size = New-Object Drawing.Size(400, 30)
+$ventanaRespaldo.Controls.Add($label)
+
+$textBox = New-Object System.Windows.Forms.TextBox
+$textBox.Location = New-Object System.Drawing.Point(10, 50)
+$textBox.Size = New-Object Drawing.size(400, 30)
+$ventanaRespaldo.Controls.Add($textBox)
+
+$botonAceptar = New-Object Windows.Forms.Button
+$botonAceptar.Text = "Aceptar"
+$botonAceptar.Size = New-Object Drawing.Size(150, 30)
+$botonAceptar.Location = New-Object Drawing.Point(10, 100)
+$ventanaRespaldo.Controls.Add($botonAceptar)
+
+$botonRegresarR = New-Object Windows.Forms.Button
+$botonRegresarR.Text = "Regresar"
+$botonRegresarR.Size = New-Object Drawing.Size(150, 30)
+$botonRegresarR.Location = New-Object Drawing.Point(10, 300)
+$ventanaRespaldo.Controls.Add($botonRegresarR)
+
+
+$botonAceptar.Add_Click({
+# Obtiene la ruta del directorio que deseas respaldar desde el cuadro de texto o una variable
+$ruta = $textBox.text
+$fechaPasada = (Get-Date).AddDays(-7)
+$fechaActual = (Get-Date).ToString("dd_MM_yyyy")
+$nombreRespaldo = "respaldo_$fechaActual"
+$rutaRespaldos = "c:\respaldos"
+
+if (!(Test-Path -Path $rutaRespaldos)) {
+    New-Item -Path $rutaRespaldos -ItemType Directory -Force
+}
+
+$rutaArchivoRespaldo = Join-Path -Path $rutaRespaldos -ChildPath "$nombreRespaldo.zip"
+$archivosARespaldar = Get-ChildItem -Path "$ruta" -Include *.xlsx, *.docx, *.pptx -Recurse | Where-Object { $_.LastWriteTime -ge $fechaPasada }
+
+if ($archivosARespaldar.Count -gt 0) {
+    # Comprimir todos los archivos en un solo archivo ZIP
+    Compress-Archive -Path $archivosARespaldar.FullName -CompressionLevel "Fastest" -DestinationPath $rutaArchivoRespaldo -Update
+
+    [System.Windows.Forms.MessageBox]::Show("Éxito, `nArchivos respaldados en $rutaArchivoRespaldo.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+} else {
+    [System.Windows.Forms.MessageBox]::Show("No se encontraron archivos para respaldar.", "Información", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+}
+
+
+
+})
+
+
+$botonRegresarR.Add_Click({
+   $ventanaRespaldo.Close()
+   $ventanaP.Show()
+})
+
+
+$ventanaP.ShowDialog()
+
+
