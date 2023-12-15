@@ -4,7 +4,7 @@ package algoritmosrt;
 /**
  *
  * @author FerRMZ
- */
+ *///
 import java.util.Random;
 
 public class GeneradorProcesos {
