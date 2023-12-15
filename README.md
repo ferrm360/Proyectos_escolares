@@ -8,8 +8,9 @@ El proposito de este repositorio es llevar un registro de los proyectos que he r
 
 <details>
   <summary><a name="proyecto-unidad-1"></a>Proyecto Unidad 1</summary>
-  - [Equipo](Sistemas_Operativos/Proyecto_U1/Bash/)
-  - [Individual](Sistemas_Operativos/Proyecto_U2/Powershell/)
+  
+  - [PowerShell](Sistemas_Operativos/Proyecto_U1/ProyectoPowerShell.txt)
+  - [Bash](Sistemas_Operativos/Proyecto_U2/ProyectoBash.txt/)
 </details>
 
 <details>
